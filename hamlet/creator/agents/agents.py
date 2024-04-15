@@ -513,7 +513,10 @@ class Agents:
                 plants_ids += [plant_id]
 
                 # Add meter data
-                meters[plant_id] = self.__init_vals(df=meters)  # TODO: Ponder if rows need to be added here
+                energy_types = c.COMP_MAP[plant].keys()
+                for key in energy_types:
+                    col_id = f'{plant_id}_{plant}_{key}'
+                    meters[col_id] = self.__init_vals(df=meters)
 
                 # Add setpoints
                 setpoints[plant_id] = self.__init_vals(df=setpoints)  # TODO: Ponder if rows need to be added here
@@ -1240,6 +1243,9 @@ class Agents:
             file.name = f'{plant_id}_{file.name}'
         else:
             file.columns = [f'{plant_id}_{col}' for col in file.columns]
+
+        file = file.round().astype(int)
+        file = file.astype(float)
 
         # Resample the time series data to ensure all rows are filled
         file = self._resample_timeseries(timeseries=file, delta=delta)

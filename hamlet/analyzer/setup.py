@@ -54,6 +54,8 @@ from pathlib import PurePath
 import plotly.graph_objects as go
 import plotly.express as px
 import ast
+import plotly.express as px
+import plotly.io as plt_io
 
 
 
@@ -99,7 +101,7 @@ class Analyzer:
 
     def calculate_error(self, starting_date):
 
-        error_matrix = pd.DataFrame(columns=['Agent', 'Label', 'MAPE', 'RMSE', 'MAE', 'NRMSE', 'MASE', 'CV', 'MAAPE'])
+        error_matrix = pd.DataFrame(columns=['Agent', 'Label', 'MAPE', 'RMSE', 'MAE', 'NRMSE', 'MASE', 'CV', 'MAAPE', 'MAAPE2'])
         estimation_matrix = pd.DataFrame(columns=['Timestamp', 'Agent', 'Label', 'Overestimation', 'Underestimation', 'Benefits', 'Benefits_Market', 'Benefits_Balancing', 'Costs', 'Costs_Market', 'Costs_Balancing', 'Costs_Fees', 'Balance'])
 
         for region in self.structure.keys():
@@ -176,13 +178,13 @@ class Analyzer:
 
 
                                             if market_transactions_market_time[c.TC_PRICE_PU_OUT].notna().any():
-                                                price_sell = market_transactions_market[c.TC_PRICE_PU_OUT].dropna().iloc[0] / c.EUR_KWH_TO_EURe7_WH
+                                                price_sell = market_transactions_market_time[c.TC_PRICE_PU_OUT].dropna().iloc[0] / c.EUR_KWH_TO_EURe7_WH
 
                                             else:
                                                 price_sell = self.config_markets['lem_continuous']['pricing']['retailer']['energy']['fixed']['price'][0]
 
-                                            if market_transactions_market[c.TC_PRICE_PU_IN].notna().any():
-                                                price_buy = market_transactions_market[c.TC_PRICE_PU_IN].dropna().iloc[0] / c.EUR_KWH_TO_EURe7_WH
+                                            if market_transactions_market_time[c.TC_PRICE_PU_IN].notna().any():
+                                                price_buy = market_transactions_market_time[c.TC_PRICE_PU_IN].dropna().iloc[0] / c.EUR_KWH_TO_EURe7_WH
 
                                             else:
                                                 price_buy = self.config_markets['lem_continuous']['pricing']['retailer']['energy']['fixed']['price'][1]
@@ -207,16 +209,16 @@ class Analyzer:
                                                 balance = benefits_out - costs_in
 
                                             elif sum_meters_time < 0:
-                                                    sum_meters_time = -sum_meters_time
-                                                    costs_market = (sum_meters_time - balancing_in_agent) * price_buy
-                                                    costs_balancing = balancing_in_agent * self.config_markets['lem_continuous']['pricing']['retailer']['balancing']['fixed']['price'][1]
-                                                    costs_fees = sum_meters_time * grid_and_levies_price
-                                                    benefits_balancing = balancing_out_agent * self.config_markets['lem_continuous']['pricing']['retailer']['balancing']['fixed']['price'][0]
-                                                    benefits_market = 0
+                                                sum_meters_time = -sum_meters_time
+                                                costs_market = (sum_meters_time - balancing_in_agent) * price_buy
+                                                costs_balancing = balancing_in_agent * self.config_markets['lem_continuous']['pricing']['retailer']['balancing']['fixed']['price'][1]
+                                                costs_fees = sum_meters_time * grid_and_levies_price
+                                                benefits_balancing = balancing_out_agent * self.config_markets['lem_continuous']['pricing']['retailer']['balancing']['fixed']['price'][0]
+                                                benefits_market = 0
 
-                                                    costs_in = costs_market + costs_balancing + costs_fees
-                                                    benefits_out = benefits_balancing + benefits_market
-                                                    balance = benefits_out - costs_in
+                                                costs_in = costs_market + costs_balancing + costs_fees
+                                                benefits_out = benefits_balancing + benefits_market
+                                                balance = benefits_out - costs_in
 
 
                                             elif sum_meters_time == 0:
@@ -234,8 +236,8 @@ class Analyzer:
                                                 benefits_out = benefits_balancing + benefits_market
                                                 balance = benefits_out - costs_in
 
-                                            underestimation = balancing_in_agent.sum()
-                                            overestimation = balancing_out_agent.sum()
+                                            overestimation = balancing_in_agent.sum()
+                                            underestimation = balancing_out_agent.sum()
 
                                             if filtered_market_transactions.empty:
                                                 underestimation = 0
@@ -269,6 +271,63 @@ class Analyzer:
                                     filtered_meters[c.TC_TIMESTAMP] = filtered_meters[c.TC_TIMESTAMP] - timedelta(minutes=15)
 
                                     label = 'Aggregator'
+                                    # create our custom_dark theme from the plotly_dark template
+                                    plt_io.templates["custom"] = plt_io.templates["simple_white"]
+
+                                    # create our custom_dark theme from the plotly_dark template
+                                    plt_io.templates["custom"] = plt_io.templates["simple_white"]
+
+                                    plt_io.templates['custom']['layout']['yaxis']['showgrid'] = True
+                                    plt_io.templates['custom']['layout']['xaxis']['showgrid'] = True
+                                    plt_io.templates['custom']['layout']['font']['size'] = 45
+                                    plt_io.templates['custom']['layout']['legend']['y'] = 7000
+                                    plt_io.templates['custom']['layout']['legend']['yanchor'] = 'bottom'
+                                    plt_io.templates['custom']['layout']['legend']['orientation'] = 'h'
+                                    plt_io.templates['custom']['layout']['legend']['xanchor'] = 'right'
+                                    plt_io.templates['custom']['layout']['legend']['x'] = 1
+                                    plt_io.templates['custom']['layout']['legend']['font_size'] = 40
+
+                                    grph = filtered_meters.copy()
+
+                                    column_groups = grph.columns.str.split('_').str[1] +"_"+ grph.columns.str.split('_').str[2]
+
+                                    # Group columns by the common prefix and sum them
+                                    grph = grph.groupby(column_groups, axis=1).sum()
+
+                                    grph[c.TC_TIMESTAMP] = filtered_meters[c.TC_TIMESTAMP]
+
+
+                                    fig = px.line(grph, x=c.TC_TIMESTAMP, y=grph.columns)
+                                    fig.add_trace(go.Scatter(x=grph[c.TC_TIMESTAMP], y=grph.sum(numeric_only=True, axis=1), fill='tozeroy',
+                                                             mode='lines', line_color='rgb(173,216,230)', name='net_amount'
+                                                             ))
+                                    fig.update_layout(yaxis_title='Wh per 15 minutes', font=dict(size=20),
+                                                      legend=dict(y=0.5, traceorder='reversed', font_size=18))
+                                    fig.layout.template = 'custom'
+                                    fig.update_layout(legend_title_text='')
+                                    fig.update_layout(legend={
+                                        "font": {
+                                            "family": "Arial, monospace",
+                                            "size": 25
+                                        }})
+
+                                    fig.update_layout(legend=dict(
+                                        orientation="h",
+                                        yanchor="bottom",
+                                        y=1.02,
+                                        xanchor="right",
+                                        x=1
+                                    ))
+
+                                    fig.update_layout(
+                                        legend=dict(
+                                            bordercolor="Black",
+                                            borderwidth=2
+                                        )
+                                    )
+                                    fig.show()
+
+
 
                                     energy_error_all = []
 
@@ -279,8 +338,8 @@ class Analyzer:
                                         filtered_market_transactions_grid = market_transactions_grid[(pd.to_datetime(market_transactions_grid[c.TC_TIMESTEP]) == timestamp) & (market_transactions_grid['id_agent'] == agent)]
                                         filtered_market_transactions_levies = market_transactions_levies[(pd.to_datetime(market_transactions_levies[c.TC_TIMESTEP]) == timestamp) & (market_transactions_levies['id_agent'] == agent)]
 
-                                        underestimation = filtered_market_transactions.fillna(0)[c.TC_ENERGY_IN] * c.WH_TO_KWH
-                                        overestimation = filtered_market_transactions.fillna(0)[c.TC_ENERGY_OUT] * c.WH_TO_KWH
+                                        overestimation = filtered_market_transactions.fillna(0)[c.TC_ENERGY_IN] * c.WH_TO_KWH
+                                        underestimation = filtered_market_transactions.fillna(0)[c.TC_ENERGY_OUT] * c.WH_TO_KWH
 
                                         underestimation = underestimation.sum()
                                         overestimation = overestimation.sum()
@@ -335,7 +394,7 @@ class Analyzer:
                                                                                                              energy_error_all)
 
                                         # Calculate the MAPE value and return
-                                        return round(np.mean(np.abs(energy_error_all / sum_meters)) * 100, 2)
+                                        return np.mean(np.abs(energy_error_all / sum_meters)) * 100
 
                                     def calculate_rmse_error(sum_meters, energy_error_all) -> float:
                                         # Convert actual and predicted
@@ -349,7 +408,7 @@ class Analyzer:
 
                                         rmse = math.sqrt(mse)
 
-                                        return round(rmse, 2)
+                                        return rmse
 
                                     def calculate_mae_error(sum_meters, energy_error_all) -> float:
                                         # Convert actual and predicted
@@ -361,7 +420,7 @@ class Analyzer:
 
                                         mae = energy_error_all.mean()
 
-                                        return round(mae, 2)
+                                        return mae
 
                                     def calculate_nrmse_error(sum_meters, energy_error_all) -> float:
                                         # Convert actual and predicted
@@ -376,7 +435,7 @@ class Analyzer:
 
                                         nrmse = np.square((np.mean(np.square(energy_error_all / sum_meters)) * 100))
 
-                                        return round(nrmse, 2)
+                                        return nrmse
 
                                     def calculate_mase_error(sum_meters, energy_error_all) -> float:
                                         # Convert actual and predicted
@@ -419,6 +478,19 @@ class Analyzer:
                                         return round(maape, 2)
 
 
+                                    def calculate_maape2_error(sum_meters, energy_error_all) -> float:
+                                        # Convert actual and predicted
+                                        # to numpy array data type if not already
+                                        if not all([isinstance(sum_meters, np.ndarray),
+                                                    isinstance(energy_error_all, np.ndarray)]):
+                                            sum_meters, energy_error_all = np.array(sum_meters), np.array(
+                                                energy_error_all)
+
+                                        maape = np.mean(np.arctan(np.abs(energy_error_all / (sum_meters + self.EPSILON))))
+
+                                        return maape
+
+
                                     def remove_zeros_and_corresponding_values(array1, array2):
                                         # Step 1: Find indices of zero values in array1
                                         zero_indices = np.where(array1 == 0)[0]
@@ -437,6 +509,11 @@ class Analyzer:
                                     #            market_transactions['id_agent'] == "retailer")]
                                     #trans = market_transactions[market_transactions['id_agent'] == agent]
 
+                                    if not all([isinstance(sum_meters, np.ndarray),
+                                                isinstance(energy_error_all, np.ndarray)]):
+                                        sum_meters, energy_error_all = np.array(sum_meters), np.array(
+                                            energy_error_all)
+
                                     mape = calculate_mape_error(sum_meters, energy_error_all)
 
                                     rmse = calculate_rmse_error(sum_meters, energy_error_all)
@@ -451,7 +528,9 @@ class Analyzer:
 
                                     maape = calculate_maape_error(sum_meters, energy_error_all)
 
-                                    error_row = [agent, label, mape, rmse, mae, nrmse, mase, cv, maape]
+                                    maape2 = calculate_maape2_error(sum_meters, energy_error_all)
+
+                                    error_row = [agent, label, mape, rmse, mae, nrmse, mase, cv, maape, maape2]
 
                                     error_matrix.loc[len(error_matrix.index)] = error_row
 
@@ -481,7 +560,7 @@ class Analyzer:
                                         meters_renamed.rename(columns={col: plant['type'] for col, plant in plants.items()}, inplace=True)
 
                                         # Check if there are other columns except 'inflexible-load'
-                                        if c.P_INFLEXIBLE_LOAD in meters_renamed.columns and len(meters_renamed.columns) <= 2:
+                                        if len(meters_renamed.columns) <= 2:
                                             label = 'consumer'
                                         else:
                                             label = 'prosumer'
@@ -490,25 +569,68 @@ class Analyzer:
 
                                         filtered_meters[c.TC_TIMESTAMP] = filtered_meters[c.TC_TIMESTAMP] - timedelta(minutes=15)
 
-                                        title = label + ' ' + 'Prodution and Consumption'
+                                        #title = label.capitalize() + ' ' + 'Prodution and Consumption'
 
-                                        cols = pd.Series(filtered_meters.columns)
-                                        for dup in filtered_meters.columns[
-                                            filtered_meters.columns.duplicated(keep=False)]:
-                                            cols[filtered_meters.columns.get_loc(dup)] = ([dup + '.' + str(d_idx)
-                                                                                           if d_idx != 0
-                                                                                           else dup
-                                                                                           for d_idx in
-                                                                                           range(
-                                                                                               filtered_meters.columns.get_loc(
-                                                                                                   dup).sum())]
+                                        # create our custom_dark theme from the plotly_dark template
+                                        plt_io.templates["custom"] = plt_io.templates["simple_white"]
+
+                                        # create our custom_dark theme from the plotly_dark template
+                                        plt_io.templates["custom"] = plt_io.templates["simple_white"]
+
+                                        plt_io.templates['custom']['layout']['yaxis']['showgrid'] = True
+                                        plt_io.templates['custom']['layout']['xaxis']['showgrid'] = True
+                                        plt_io.templates['custom']['layout']['font']['size'] = 45
+                                        plt_io.templates['custom']['layout']['legend']['y'] = 7000
+                                        plt_io.templates['custom']['layout']['legend']['yanchor'] = 'bottom'
+                                        plt_io.templates['custom']['layout']['legend']['orientation'] = 'h'
+                                        plt_io.templates['custom']['layout']['legend']['xanchor'] = 'right'
+                                        plt_io.templates['custom']['layout']['legend']['x'] = 1
+                                        plt_io.templates['custom']['layout']['legend']['font_size'] = 40
+
+                                        grph = filtered_meters.copy()
+
+                                        column_groups = grph.columns.str.split('_').str[1] + "_" + \
+                                                        grph.columns.str.split('_').str[2]
+
+                                        # Group columns by the common prefix and sum them
+                                        grph = grph.groupby(column_groups, axis=1).sum()
+
+                                        grph[c.TC_TIMESTAMP] = filtered_meters[c.TC_TIMESTAMP]
+
+                                        fig = px.line(grph, x=c.TC_TIMESTAMP, y=grph.columns)
+                                        fig.add_trace(
+                                            go.Scatter(x=grph[c.TC_TIMESTAMP], y=grph.sum(numeric_only=True, axis=1),
+                                                       fill='tozeroy',
+                                                       mode='lines', line_color='rgb(173,216,230)', name='net_amount'
+                                                       ))
+                                        fig.update_layout(yaxis_title='Wh per 15 minutes', font=dict(size=20),
+                                                          legend=dict(y=0.5, traceorder='reversed', font_size=18))
+                                        fig.layout.template = 'custom'
+                                        fig.update_layout(legend_title_text='')
+                                        fig.update_layout(legend={
+                                            "font": {
+                                                "family": "Arial, monospace",
+                                                "size": 25
+                                            }})
+
+                                        fig.update_layout(legend=dict(
+                                            orientation="h",
+                                            yanchor="bottom",
+                                            y=1.02,
+                                            xanchor="right",
+                                            x=1
+                                        ))
+
+                                        fig.update_layout(
+                                            legend=dict(
+                                                bordercolor="Black",
+                                                borderwidth=2
                                             )
-                                        filtered_meters.columns = cols
+                                        )
 
-                                        #fig = px.line(filtered_meters, x=c.TC_TIMESTAMP, y=filtered_meters.columns,
-                                        #              title=title)
+                                        fig.show()
 
-                                        #fig.show()
+
 
                                         energy_error_all = []
 
@@ -538,9 +660,9 @@ class Analyzer:
                                                                                                                                   market_transactions_levies[
                                                                                                                                       'id_agent'] == agent)]
 
-                                            underestimation = filtered_market_transactions.fillna(0)[
-                                                                  c.TC_ENERGY_IN] * c.WH_TO_KWH
                                             overestimation = filtered_market_transactions.fillna(0)[
+                                                                  c.TC_ENERGY_IN] * c.WH_TO_KWH
+                                            underestimation = filtered_market_transactions.fillna(0)[
                                                                  c.TC_ENERGY_OUT] * c.WH_TO_KWH
 
                                             underestimation = underestimation.sum()
@@ -627,7 +749,7 @@ class Analyzer:
 
                                             rmse = math.sqrt(mse)
 
-                                            return round(rmse, 2)
+                                            return rmse
 
                                         def calculate_mae_error(sum_meters, energy_error_all) -> float:
                                             # Convert actual and predicted
@@ -638,7 +760,7 @@ class Analyzer:
 
                                             mae = energy_error_all.mean()
 
-                                            return round(mae, 2)
+                                            return mae
 
                                         def calculate_nrmse_error(sum_meters, energy_error_all) -> float:
                                             # Convert actual and predicted
@@ -651,7 +773,7 @@ class Analyzer:
 
                                             nrmse = np.square((np.mean(np.square(energy_error_all / sum_meters)) * 100))
 
-                                            return round(nrmse, 2)
+                                            return nrmse
 
                                         def calculate_mase_error(sum_meters, energy_error_all) -> float:
                                             # Convert actual and predicted
@@ -690,6 +812,19 @@ class Analyzer:
 
                                             return round(maape, 2)
 
+                                        def calculate_maape2_error(sum_meters, energy_error_all) -> float:
+                                            # Convert actual and predicted
+                                            # to numpy array data type if not already
+                                            if not all([isinstance(sum_meters, np.ndarray),
+                                                        isinstance(energy_error_all, np.ndarray)]):
+                                                sum_meters, energy_error_all = np.array(sum_meters), np.array(
+                                                    energy_error_all)
+
+                                            maape = np.mean(
+                                                np.arctan(np.abs(energy_error_all / (sum_meters + self.EPSILON))))
+
+                                            return maape
+
                                         def remove_zeros_and_corresponding_values(array1, array2):
                                             # Step 1: Find indices of zero values in array1
                                             zero_indices = np.where(array1 == 0)[0]
@@ -707,6 +842,11 @@ class Analyzer:
                                         #tran = market_transactions[(market_transactions['id_agent'] == agent) | (market_transactions['id_agent'] == "retailer")]
                                         #trans = market_transactions[market_transactions['id_agent'] == agent]
 
+                                        if not all([isinstance(sum_meters, np.ndarray),
+                                                    isinstance(energy_error_all, np.ndarray)]):
+                                            sum_meters, energy_error_all = np.array(sum_meters), np.array(
+                                                energy_error_all)
+
                                         mape = calculate_mape_error(sum_meters, energy_error_all)
 
                                         rmse = calculate_rmse_error(sum_meters, energy_error_all)
@@ -721,7 +861,9 @@ class Analyzer:
 
                                         maape = calculate_maape_error(sum_meters, energy_error_all)
 
-                                        error_row = [agent, label, mape, rmse, mae, nrmse, mase, cv, maape]
+                                        maape2 = calculate_maape2_error(sum_meters, energy_error_all)
+
+                                        error_row = [agent, label, mape, rmse, mae, nrmse, mase, cv, maape, maape2]
 
                                         error_matrix.loc[len(error_matrix.index)] = error_row
 

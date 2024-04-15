@@ -1188,7 +1188,7 @@ aggregator:
                                                   # - 'heat_storage'
 
 
-          devices_inclusive: "inclusive"          # inclusive: agents needs to have ALL the listed plants to fulfill requirements
+          devices_inclusive: "exclusive"          # inclusive: agents needs to have ALL the listed plants to fulfill requirements
                                                   # exclusive: agents needs to have ANY of the listed plants to fulfill requirements
 
           share: 0.13                             # share of the specified group that is represented by the aggregators of this type

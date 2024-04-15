@@ -90,7 +90,7 @@ lem_continuous:                       # name of the market (must be unique in it
                                       # unit: €/kWh
                                       # note: first position is for selling to, second for buying energy from retailer
 
-          'quantity': [1e6, 1e6]      # retail energy quantities
+          'quantity': [99999, 99999]      # retail energy quantities
                                       # unit: Wh
                                       # note: first position is for selling, second for buying energy
 

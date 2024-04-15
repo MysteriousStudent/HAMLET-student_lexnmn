@@ -439,6 +439,9 @@ class Lem(MarketBase):
 
         # Get the actions that are to be executed for this timestep
         all_actions = kwargs['actions']
+        if self.tasks['timestamp'].hour == 5:
+            infhdj = 5
+
 
         # Check if clearing has occurred, otherwise create the correct uncleared bids and offers tables
         if c.MA_CLEAR not in all_actions and not self.bids_offers.is_empty():
@@ -548,7 +551,7 @@ class Lem(MarketBase):
         net_energy = net_energy.with_columns([
             (pl.when(pl.col(c.TC_ENERGY) > 0).then(pl.col(c.TC_ENERGY)).otherwise(None))
             .alias(c.TC_ENERGY_IN).cast(pl.Int64),
-            (pl.when(pl.col(c.TC_ENERGY) < 0).then(pl.col(c.TC_ENERGY)).otherwise(None))
+            (pl.when(pl.col(c.TC_ENERGY) < 0).then(abs(pl.col(c.TC_ENERGY))).otherwise(None))
             .alias(c.TC_ENERGY_OUT).cast(pl.Int64),
         ])
         net_energy = net_energy.drop(c.TC_ENERGY)
@@ -557,6 +560,7 @@ class Lem(MarketBase):
         # Join the dataframes to have the information about the net energy
         suffix = '_right'
         transactions = transactions.join(net_energy, on=c.TC_ID_AGENT, how='left', suffix=suffix)
+
         # Replace the new energy columns with the old ones
         transactions = transactions.with_columns([
             pl.col(f'{c.TC_ENERGY_IN}{suffix}').alias(c.TC_ENERGY_IN).cast(pl.UInt64),

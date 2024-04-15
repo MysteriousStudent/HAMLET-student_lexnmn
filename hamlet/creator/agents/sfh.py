@@ -12,6 +12,7 @@ from ruamel.yaml.compat import ordereddict
 from pprint import pprint
 import hamlet.constants as c
 from typing import Callable
+import random
 
 
 class Sfh(AgentBase):
@@ -145,7 +146,7 @@ class Sfh(AgentBase):
         self.fill_hp(**kwargs)
 
         # Fill the electric vehicle information in dataframe
-        #self.fill_ev(**kwargs)
+        self.fill_ev(**kwargs)
 
         # Fill the battery information in dataframe
         self.fill_battery(**kwargs)
@@ -175,7 +176,7 @@ class Sfh(AgentBase):
                 cols.insert(1, f"{key}/name")
                 cols.insert(2, f"{key}/comment")
                 cols.insert(3, f"{key}/bus")
-                cols.insert(5, f"{key}/aggregated_by")
+                cols.insert(4, f"{key}/aggregated_by")
             # Adjust the columns from c.P_INFLEXIBLE_LOAD
             elif key == c.P_INFLEXIBLE_LOAD:
                 cols[0] = f"{key}/owner"
@@ -721,8 +722,8 @@ class Sfh(AgentBase):
                 self.df[f"{key}/sizing/orientation_{num}"] = 0
                 self.df[f"{key}/sizing/angle_{num}"] = 0
 
-            # Make all plants controllable
-            self.df[f"{key}/sizing/controllable_{num}"] = True
+            # Pick random value from the config file for controllability
+            self.df[f"{key}/sizing/controllable_{num}"] = random.choice(config["sizing"]["controllable"])
 
             # forecast
         self.df = self._add_info_simple(keys=[key, "fcast"], config=config["fcast"], df=self.df)
@@ -836,8 +837,8 @@ class Sfh(AgentBase):
                 # Assign standard height since they do not matter if no file is specified
                 # self.df[f"{key}/sizing/height_{num}"] = 0
 
-            # Make all plants controllable
-            self.df[f"{key}/sizing/controllable_{num}"] = True
+            # Pick random value from the config file for controllability
+            self.df[f"{key}/sizing/controllable_{num}"] = random.choice(config["sizing"]["controllable"])
 
             # forecast
         self._add_info_simple(keys=[key, "fcast"], config=config["fcast"], df=self.df)
@@ -938,8 +939,8 @@ class Sfh(AgentBase):
                                                                        device=f"{key}",
                                                                        input_path=os.path.join(self.input_path, key))
 
-            # Make all plants controllable
-            self.df[f"{key}/sizing/controllable_{num}"] = True
+            # Pick random value from the config file for controllability
+            self.df[f"{key}/sizing/controllable_{num}"] = random.choice(config["sizing"]["controllable"])
 
             # forecast
         self._add_info_simple(keys=[key, "fcast"], config=config["fcast"], df=self.df)

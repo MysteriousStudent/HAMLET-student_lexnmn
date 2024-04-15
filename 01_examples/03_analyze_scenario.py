@@ -5,15 +5,12 @@ sys.path.append("./")  # Add the current directory to the Python path for execut
 from hamlet import Analyzer
 from datetime import datetime
 
-# Path to the scenario folder (relative or absolute)
-list_scenarios = ["prosumer", "individual"]
-#list_scenarios = ["individual", "prosumer", "consumer", "mixed"]
+list_scenarios = ["individual", "prosumer", "consumer", "mixed"]
 list_seasons = ["summer", "transition", "winter"]
-#list_seasons = ["summer"]
 list_group_size = ["5", "10", "15"]
-#list_group_size = ["5"]
 list_forecasting_methods = ["naive", "perfect"]
-#list_forecasting_methods = ["perfect"]
+
+# Path to the scenario folder (relative or absolute)
 
 # datetime(year, month, day, hour, minute, second, microsecond), Summer, Transition, Winter
 # Sample data (replace with your actual dataframe)
